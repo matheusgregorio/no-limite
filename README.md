@@ -15,9 +15,17 @@ Controle de gastos simples e responsivo para acompanhar orçamentos mensais, esp
 
 É um site estático, sem backend nem etapa de build. Abra `index.html` no navegador ou publique o conteúdo da raiz do repositório em um serviço HTTPS.
 
-## Publicar no Netlify
+## Publicar no GitHub Pages (recomendado)
 
-No [painel do Netlify](https://app.netlify.com/), escolha criar um novo projeto com origem no GitHub, autorize o acesso ao repositório `matheusgregorio/no-limite`, escolha a branch `main` e publique. O arquivo `netlify.toml` configura a pasta pública como a raiz do repositório. Depois, pushes na `main` podem gerar novos deploys automaticamente.
+O No Limite é um site estático e pode ser hospedado gratuitamente no GitHub Pages, sem marca d'água e sem serviço de build externo.
+
+Abra [Settings → Pages](https://github.com/matheusgregorio/no-limite/settings/pages), selecione **Deploy from a branch**, escolha a branch **main** e a pasta **/(root)** e clique em **Save**. O site será publicado em https://matheusgregorio.github.io/no-limite/ depois que o GitHub concluir a implantação.
+
+Mudanças na branch `main` serão publicadas pelo GitHub Pages automaticamente.
+
+## Hospedagem alternativa: Netlify
+
+O projeto também pode ser servido pelo Netlify usando `netlify.toml`. Se houver um selo “Powered by Netlify”, ele pode ser desligado em **Project configuration → General → Powered by Netlify badge**.
 
 ## Privacidade e backup
 
