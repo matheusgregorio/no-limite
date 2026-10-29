@@ -1,0 +1,11 @@
+{
+  "name": "No Limite — Controle de gastos",
+  "short_name": "No Limite",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8f6",
+  "theme_color": "#102c2b",
+  "description": "Defina limites mensais e registre seus gastos.",
+  "icons": [{"src":"./apple-touch-icon.png","sizes":"180x180","type":"image/png","purpose":"any"},{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}
