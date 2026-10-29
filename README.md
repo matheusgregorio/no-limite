@@ -6,11 +6,12 @@ Controle de gastos simples e responsivo para acompanhar orçamentos mensais e me
 
 ### Gastos
 - Limites mensais por categoria, começando com Uber/99 (R$ 600), restaurantes/delivery (R$ 650), mercado e conveniência (R$ 200) e compras online (R$ 350).
-- Mostra quanto ainda pode gastar **por dia** até o fim do mês, no total e em cada categoria.
+- Mostra quanto ainda pode gastar **nesta semana** (segunda a domingo), no total e em cada categoria. O valor da semana é o que sobrava do mês na segunda-feira dividido pelos dias restantes: um dia caro se dilui, e uma semana estourada deixa as próximas menores. Em Uber/99, mostra também quantas corridas cabem.
 - No mês em que você começa a usar o app, os limites são proporcionais aos dias que faltam a partir do primeiro uso.
 - Avisa quando você está gastando mais rápido do que o mês permite. A marca branca na barra mostra até onde você deveria ter chegado hoje.
 - **Valores rápidos**: em + Gasto, um toque num valor já salva o gasto. Os botões aprendem os valores que você mais usa em cada categoria, e dá para desfazer pela notificação.
 - Aceita valores como `28,90`, `28.90`, `1.500` e `1.500,00`.
+- **Remanejar**: move parte do limite de uma categoria para outra só no mês atual, sem mudar o limite fixo nem o total do mês. Dá para desfazer.
 - Alertas visuais aos 80% e 100% do limite, histórico por mês, edição e exclusão de gastos.
 
 ### Economia
