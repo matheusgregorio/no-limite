@@ -147,8 +147,10 @@
   (function(){
     'use strict';
     // Previews (/dev/ e /pr-preview/pr-N/) guardam dados separados do app de verdade.
+    // No Netlify, os previews ficam em outro endereço (deploy-preview-N--… e dev--…), então os dados já são separados.
     const envMatch=location.pathname.match(/\/(pr-preview\/pr-(\d+)|dev)\//);
-    const ENV=envMatch?(envMatch[2]?'PR #'+envMatch[2]:'dev'):null;
+    const hostMatch=location.hostname.match(/^(?:deploy-preview-(\d+)|(dev))--/);
+    const ENV=envMatch?(envMatch[2]?'PR #'+envMatch[2]:'dev'):hostMatch?(hostMatch[1]?'PR #'+hostMatch[1]:'dev'):null;
     const KEY='no-limite-app-v1'+(envMatch?':'+envMatch[1]:'');
     const $=id=>document.getElementById(id);
     const PROTECTED=['transporte','refeicoes','mercado'];
