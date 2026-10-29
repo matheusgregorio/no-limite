@@ -1,0 +1,45 @@
+# Publica o site no GitHub Pages (branch gh-pages):
+# - main → raiz (https://matheusgregorio.github.io/no-limite/)
+# - dev  → /dev/ (https://matheusgregorio.github.io/no-limite/dev/)
+name: Publicar site
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Montar arquivos do site
+        run: |
+          mkdir -p _site
+          rsync -a --exclude '.git' --exclude '.github' --exclude '_site' --exclude 'README.md' --exclude 'netlify.toml' ./ _site/
+
+      - name: Publicar produção (main)
+        if: github.ref == 'refs/heads/main'
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: _site
+          clean-exclude: |
+            pr-preview/
+            dev/
+
+      - name: Publicar preview da dev
+        if: github.ref == 'refs/heads/dev'
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: _site
+          target-folder: dev
