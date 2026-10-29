@@ -177,7 +177,7 @@
     const optionalCents=str=>{const s=String(str).trim();if(!s||/^0+([.,]0*)?$/.test(s))return 0;return toCents(s)};
     const defaultCategories=()=>[{id:'transporte',name:'Uber e 99',emoji:'🚕',limit:60000,baseline:0},{id:'refeicoes',name:'Restaurantes e delivery',emoji:'🍔',limit:65000,baseline:0},{id:'mercado',name:'Mercado e conveniência',emoji:'🛒',limit:20000,baseline:0},{id:'compras',name:'Compras online',emoji:'🛍️',limit:35000,baseline:0}];
     const defaultGoals=()=>[{id:'apartamento',name:'Apartamento',emoji:'🏠',target:0,monthly:0},{id:'viagem',name:'Viagem',emoji:'✈️',target:0,monthly:0}];
-    const defaults=()=>({version:2,categories:defaultCategories(),expenses:[],goals:defaultGoals(),moves:[],plan:{income:0,fixed:0},prefs:{lastBackup:null,installDismissed:false},sobraDone:{}});
+    const defaults=()=>({version:2,categories:defaultCategories(),expenses:[],goals:defaultGoals(),moves:[],plan:{income:0,fixed:0},prefs:{lastBackup:null,installDismissed:false,startDate:null},sobraDone:{}});
 
     const validCore=d=>d&&Array.isArray(d.categories)&&Array.isArray(d.expenses)&&d.categories.length>0&&d.categories.every(c=>c&&typeof c.id==='string'&&typeof c.name==='string'&&isInt(c.limit)&&c.limit>0&&(c.baseline===undefined||(isInt(c.baseline)&&c.baseline>=0)))&&d.expenses.every(e=>e&&typeof e.id==='string'&&typeof e.category==='string'&&typeof e.date==='string'&&DATE_RE.test(e.date)&&isInt(e.cents)&&e.cents>0);
     const validExtra=d=>(d.goals===undefined||(Array.isArray(d.goals)&&d.goals.every(g=>g&&typeof g.id==='string'&&typeof g.name==='string'&&isInt(g.target)&&g.target>=0&&isInt(g.monthly)&&g.monthly>=0)))&&(d.moves===undefined||(Array.isArray(d.moves)&&d.moves.every(m=>m&&typeof m.id==='string'&&typeof m.goal==='string'&&typeof m.date==='string'&&DATE_RE.test(m.date)&&isInt(m.cents)&&m.cents!==0)));
@@ -192,7 +192,7 @@
         goals:Array.isArray(d.goals)?d.goals.map(g=>({id:g.id,name:g.name,emoji:typeof g.emoji==='string'&&g.emoji?g.emoji:'🎯',target:g.target,monthly:g.monthly})):defaultGoals(),
         moves:Array.isArray(d.moves)?d.moves.map(m=>({id:m.id,goal:m.goal,date:m.date,cents:m.cents,note:typeof m.note==='string'?m.note:''})):[],
         plan:{income:isInt(plan.income)&&plan.income>=0?plan.income:0,fixed:isInt(plan.fixed)&&plan.fixed>=0?plan.fixed:0},
-        prefs:{lastBackup:typeof prefs.lastBackup==='string'?prefs.lastBackup:null,installDismissed:prefs.installDismissed===true},
+        prefs:{lastBackup:typeof prefs.lastBackup==='string'?prefs.lastBackup:null,installDismissed:prefs.installDismissed===true,startDate:typeof prefs.startDate==='string'&&DATE_RE.test(prefs.startDate)?prefs.startDate:null},
         sobraDone:sobra};
       out.moves=out.moves.filter(m=>out.goals.some(g=>g.id===m.goal));
       if(!(d.version>=2)){
@@ -214,14 +214,21 @@
     const totalLimit=()=>sum(state.categories,c=>c.limit);
     function monthLabel(month,opts){const [y,m]=month.split('-').map(Number);const value=new Date(y,m-1,1).toLocaleDateString('pt-BR',opts||{month:'long',year:'numeric'});return value.charAt(0).toUpperCase()+value.slice(1)}
     function shiftMonth(month,diff){const [y,m]=month.split('-').map(Number);return keyOf(localDate(new Date(y,m-1+diff,1)))}
-    function monthInfo(month){const [y,m]=month.split('-').map(Number);const days=new Date(y,m,0).getDate();const t=today(),tm=keyOf(t);const status=month===tm?'current':month<tm?'past':'future';const day=status==='current'?Number(t.slice(8)):0;const daysLeft=status==='current'?days-day+1:status==='future'?days:0;const expected=status==='current'?day/days:status==='past'?1:0;return{y,m,days,status,day,daysLeft,expected}}
-    function categoryStatusLine(c,month){const info=monthInfo(month);const spent=sum(monthExpenses(month).filter(e=>e.category===c.id),e=>e.cents);const rem=c.limit-spent;if(rem<0)return `passou ${fmt(-rem)} do limite`;if(info.status==='current'&&info.daysLeft>1)return `restam ${fmt(rem)} (${fmt(rem/info.daysLeft)}/dia)`;return `restam ${fmt(rem)}`}
+    // Dia em que começou a usar o app: o mês de início só conta a partir dele.
+    function startDate(){const first=state.expenses.map(e=>e.date).sort()[0];const s=state.prefs.startDate;return [s,first].filter(Boolean).sort()[0]||today()}
+    function ensureStart(){const s=startDate();if(state.prefs.startDate!==s){state.prefs.startDate=s;return true}return false}
+    function monthInfo(month){const [y,m]=month.split('-').map(Number);const days=new Date(y,m,0).getDate();const t=today(),tm=keyOf(t);const status=month===tm?'current':month<tm?'past':'future';const day=status==='current'?Number(t.slice(8)):0;const daysLeft=status==='current'?days-day+1:status==='future'?days:0;
+      const s=startDate();const first=keyOf(s)===month?Number(s.slice(8)):1;const active=days-first+1,frac=active/days;
+      const expected=status==='current'?Math.max(0,day-first+1)/active:status==='past'?1:0;
+      return{y,m,days,status,day,daysLeft,expected,first,frac}}
+    const monthLimit=(c,info)=>Math.round(c.limit*info.frac);
+    function categoryStatusLine(c,month){const info=monthInfo(month);const spent=sum(monthExpenses(month).filter(e=>e.category===c.id),e=>e.cents);const rem=monthLimit(c,info)-spent;if(rem<0)return `passou ${fmt(-rem)} do limite`;if(info.status==='current'&&info.daysLeft>1)return `restam ${fmt(rem)} (${fmt(rem/info.daysLeft)}/dia)`;return `restam ${fmt(rem)}`}
 
     function render(){renderGastos();renderSavings();renderMetas();renderFooter()}
 
     function renderGastos(){
-      const info=monthInfo(currentMonth);const expenses=monthExpenses(currentMonth);const limit=totalLimit();const spent=sum(expenses,e=>e.cents);const rem=limit-spent;const ratio=limit?spent/limit:0;
-      $('monthName').textContent=monthLabel(currentMonth);$('remainingAmount').textContent=fmt(Math.abs(rem));$('heroHelp').textContent=rem>=0?'Você ainda pode gastar este valor':'Você ultrapassou o orçamento total';$('totalSpent').textContent=fmt(spent);$('totalLimit').textContent=fmt(limit);
+      const info=monthInfo(currentMonth);const expenses=monthExpenses(currentMonth);const limit=sum(state.categories,c=>monthLimit(c,info));const spent=sum(expenses,e=>e.cents);const rem=limit-spent;const ratio=limit?spent/limit:0;
+      $('monthName').textContent=monthLabel(currentMonth);$('remainingAmount').textContent=fmt(Math.abs(rem));$('heroHelp').textContent=rem>=0?'Você ainda pode gastar este valor':'Você ultrapassou o orçamento total';$('totalSpent').textContent=fmt(spent);$('totalLimit').textContent=fmt(limit)+(info.frac<1?` (desde ${pad(info.first)}/${pad(info.m)})`:'');
       const fast=info.status==='current'&&ratio<.8&&ratio>=.15&&ratio>info.expected+.1;
       const [status,color]=ratio>=1?['● Acima do limite','#ffa8a5']:ratio>=.8?['● Atenção ao limite','#ffda93']:fast?['● Gastando rápido demais','#ffda93']:['● Dentro do limite','#9adfc1'];
       $('heroStatus').textContent=status;$('heroStatus').style.color=color;
@@ -233,12 +240,12 @@
       else daily=rem>=0?`Mês encerrado · sobraram <b>${fmt(rem)}</b>`:'Mês encerrado';
       $('heroDaily').innerHTML=daily;
       $('categoryList').innerHTML=state.categories.map(c=>{
-        const amount=sum(expenses.filter(e=>e.category===c.id),e=>e.cents),remaining=c.limit-amount,pct=amount/c.limit,css=pct>=1?'danger':pct>=.8?'warning':'';
+        const cl=monthLimit(c,info),amount=sum(expenses.filter(e=>e.category===c.id),e=>e.cents),remaining=cl-amount,pct=cl?amount/cl:1,css=pct>=1?'danger':pct>=.8?'warning':'';
         let line,cls='';
         if(pct>=1){line='Limite atingido';cls='over'}
         else if(info.status==='current'){line=`${fmt(remaining/info.daysLeft)}/dia até o fim do mês`;if(pct>=.8){line='Atenção · '+line;cls='alert'}else if(pct>=.15&&pct>info.expected+.1){line='Rápido demais · '+line;cls='alert'}}
         else line=pct>=.8?'Atenção: mais de 80% utilizado':Math.round(pct*100)+'% do limite utilizado';
-        return `<article class="category"><div class="cat-head"><span class="cat-emoji" aria-hidden="true">${safeText(c.emoji||'💸')}</span><div class="cat-title"><b>${safeText(c.name)}</b><small>${fmt(amount)} de ${fmt(c.limit)} usados</small></div><div class="cat-remaining"><b style="color:${remaining<0?'var(--red)':'var(--ink)'}">${fmt(Math.abs(remaining))}</b><small>${remaining<0?'ultrapassou':'restantes'}</small></div></div><div class="track" role="progressbar" aria-label="${safeText(c.name)}: ${Math.round(pct*100)}% utilizado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100,Math.round(pct*100))}"><div class="progress ${css}" style="width:${Math.min(100,pct*100)}%"></div></div><div class="cat-bottom"><small class="${cls}">${line}</small><button type="button" class="mini-add" data-add="${safeText(c.id)}">＋ Gasto</button></div></article>`}).join('');
+        return `<article class="category"><div class="cat-head"><span class="cat-emoji" aria-hidden="true">${safeText(c.emoji||'💸')}</span><div class="cat-title"><b>${safeText(c.name)}</b><small>${fmt(amount)} de ${fmt(cl)} usados${info.frac<1?' · proporcional':''}</small></div><div class="cat-remaining"><b style="color:${remaining<0?'var(--red)':'var(--ink)'}">${fmt(Math.abs(remaining))}</b><small>${remaining<0?'ultrapassou':'restantes'}</small></div></div><div class="track" role="progressbar" aria-label="${safeText(c.name)}: ${Math.round(pct*100)}% utilizado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100,Math.round(pct*100))}"><div class="progress ${css}" style="width:${Math.min(100,pct*100)}%"></div></div><div class="cat-bottom"><small class="${cls}">${line}</small><button type="button" class="mini-add" data-add="${safeText(c.id)}">＋ Gasto</button></div></article>`}).join('');
       const sorted=[...expenses].sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));$('toggleHistory').hidden=sorted.length<=6;$('toggleHistory').textContent=showAll?'Ver menos':'Ver todos';const listed=showAll?sorted:sorted.slice(0,6);
       $('historyList').innerHTML=listed.length?listed.map(e=>{const c=catById(e.category);const name=e.description.trim()||c?.name||'Gasto';const date=new Date(e.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});return `<div class="history-item"><span class="history-icon">${safeText(c?.emoji||'💸')}</span><div class="history-main"><b>${safeText(name)}</b><small>${safeText(c?.name||'Categoria removida')} · ${date}</small></div><div class="history-right"><strong>− ${fmt(e.cents,2)}</strong><div class="history-ops"><button class="text-action" type="button" data-edit="${safeText(e.id)}">Editar</button><button class="text-action delete" type="button" data-delete="${safeText(e.id)}">Excluir</button></div></div></div>`}).join(''):'<div class="empty"><div class="empty-symbol">🧾</div><strong>Nenhum gasto registrado</strong><p>Toque em + Gasto numa categoria e escolha um valor. O saldo diminui na hora.</p></div>';
     }
@@ -296,11 +303,11 @@
     }
 
     function renderSobra(){
-      const card=$('sobraCard');const prev=shiftMonth(keyOf(today()),-1);const exp=monthExpenses(prev);const start=state.expenses.map(e=>e.date).sort()[0];
-      if(!start||keyOf(start)>prev||!state.goals.length){card.hidden=true;return}
+      const card=$('sobraCard');const prev=shiftMonth(keyOf(today()),-1);const exp=monthExpenses(prev);const start=startDate();
+      if(keyOf(start)>prev||!state.goals.length){card.hidden=true;return}
       // No mês em que começou a usar o app, o limite conta só a partir do primeiro registro.
-      const info=monthInfo(prev),first=keyOf(start)===prev?Number(start.slice(8)):1;
-      card.hidden=false;const name=monthLabel(prev,{month:'long'}).toLowerCase();const left=Math.round(totalLimit()*(info.days-first+1)/info.days)-sum(exp,e=>e.cents);
+      const info=monthInfo(prev);
+      card.hidden=false;const name=monthLabel(prev,{month:'long'}).toLowerCase();const left=sum(state.categories,c=>monthLimit(c,info))-sum(exp,e=>e.cents);
       if(state.sobraDone[prev])card.innerHTML=`<b>✅ Sobra de ${safeText(name)} resolvida</b><p>Você já decidiu o que fazer com o que sobrou dos limites no mês passado.</p>`;
       else if(left>0)card.innerHTML=`<b>💰 Sobraram ${fmt(left)} em ${safeText(name)}</b><p>Foi o que ficou dos seus limites no mês passado. Guarde numa meta antes que vire gasto.</p><div class="tip-actions"><button type="button" class="solid-btn" data-sobra="${prev}" data-amount="${left}">Guardar sobra</button><button type="button" class="secondary" data-sobra-ignore="${prev}">Agora não</button></div>`;
       else card.innerHTML=`<b>Sem sobra em ${safeText(name)}</b><p>Você passou dos limites em ${fmt(-left)} no mês passado. Neste mês, vale olhar o valor por dia antes de gastar.</p>`;
@@ -394,13 +401,13 @@
 
     $('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify({...state,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='no-limite-backup-'+today()+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);state.prefs.lastBackup=new Date().toISOString();save();toast('Backup exportado!')};
     $('importBtn').onclick=()=>$('importFile').click();
-    $('importFile').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>5*1024*1024)throw Error('Arquivo muito grande');const d=JSON.parse(await f.text());if(!dataValid(d))throw Error('Arquivo incompatível');if(!confirm('Importar o backup substituirá seus dados atuais neste aparelho. Continuar?'))return;const prefs=state.prefs;state=normalize(d);state.prefs={...prefs,lastBackup:state.prefs.lastBackup||prefs.lastBackup};save();render();toast('Backup importado!')}catch(err){toast('Não foi possível importar esse arquivo.')}finally{e.target.value=''}});
+    $('importFile').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>5*1024*1024)throw Error('Arquivo muito grande');const d=JSON.parse(await f.text());if(!dataValid(d))throw Error('Arquivo incompatível');if(!confirm('Importar o backup substituirá seus dados atuais neste aparelho. Continuar?'))return;const prefs=state.prefs;state=normalize(d);state.prefs={...prefs,lastBackup:state.prefs.lastBackup||prefs.lastBackup,startDate:[prefs.startDate,state.prefs.startDate].filter(Boolean).sort()[0]||null};ensureStart();save();render();toast('Backup importado!')}catch(err){toast('Não foi possível importar esse arquivo.')}finally{e.target.value=''}});
     document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close()}));
 
     const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
     const standalone=navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
     $('installBanner').hidden=!(isIOS&&!standalone&&!state.prefs.installDismissed);
-    if(migrated)save();
+    if(ensureStart()||migrated)save();
     setTab(location.hash==='#metas'?'metas':'gastos',false);
     render();
     if(ENV){$('envBar').hidden=false;$('envBar').textContent=`🧪 Preview · ${ENV} — dados separados do app de verdade`;document.title=`[${ENV}] `+document.title}
