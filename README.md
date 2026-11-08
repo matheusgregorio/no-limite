@@ -11,6 +11,8 @@ Controle de gastos simples e responsivo para acompanhar orçamentos mensais e me
 - Avisa quando você está gastando mais rápido do que o mês permite. A marca branca na barra mostra até onde você deveria ter chegado hoje.
 - **Valores rápidos**: em + Gasto, um toque num valor já salva o gasto. Os botões aprendem os valores que você mais usa em cada categoria, e dá para desfazer pela notificação.
 - Aceita valores como `28,90`, `28.90`, `1.500` e `1.500,00`.
+- **Saldo até o fim do mês**: informe quanto tem livre até o fim do mês (botão no card principal). O valor da semana passa a vir desse saldo, e as categorias são reduzidas na mesma proporção quando o saldo é menor que os limites. Atualize o saldo sempre que quiser conferir com o banco.
+- Cada gasto é marcado como **Pix ou débito** ou **cartão**. Pix registrado depois da última atualização sai do saldo. Cartão sempre conta, porque vai sair na fatura, e o app mostra quanto já foi para o cartão.
 - **Remanejar**: move parte do limite de uma categoria para outra só no mês atual, sem mudar o limite fixo nem o total do mês. Dá para desfazer.
 - Alertas visuais aos 80% e 100% do limite, histórico por mês, edição e exclusão de gastos.
 
